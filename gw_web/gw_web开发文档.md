@@ -1,7 +1,9 @@
 # <center>gw_web开发文档</center>
-## <font color=#0000FF>  web管理前后端概述</font>
--	web管理前后端交互系统框图
+[TOC]
 ***
+## <font color=#0000FF>  web管理前后端概述</font>
+***
+-	web管理前后端交互系统框图
 ```mermaid
   graph LR
     id1(webApp)-->|response|id2(Node js)
@@ -14,7 +16,7 @@
     linkStyle 1 stroke:#0ff,stroke-width:2px;
     linkStyle 2 stroke:#0ff,stroke-width:2px;
 ```
-***
+
 设备板上包括 webApp 和 Node js 两部分程序组件， 浏览器前端只与 Node js交互， 利用 vue 或 angular 开发, webApp与Node js间通过一个基于tcp的socket接口，按约定的 json 格式信息帧进行交互通信。
 
 1. webApp 是设备信息的集中管理者， 用于处理外部请求信息，同时对外提供设备信息
@@ -30,12 +32,13 @@
 - Length ：该字段 4 字节长，用于表示该帧的长度，长度 length = 4 Byte + X Byte，包括 Type 字段和 json 数据字段的总长度，不包括 Length 自己的 4 个字节长度;
 - Type ：该字段 4 字节长，用于指示该帧的类型 ，type 的帧类型用于方便指示该帧中 Json Data 的类型，用于在不反序列化的情况下就能转发该数据帧到其他模块，考虑到可以在定义的 Json 中包含type字段用于指示，因此交互时该字段可作为保留字段
 - Data: Json 序列化的消息
+***
 
 ## <font color=#0000FF> 后端系统架构及组件</font>
-
+***
 ### 模型（Producer/Consumer/Worker）
 
-***
+
 ```mermaid
   graph LR
     id1(Producer)-->id3(消息缓冲队列)
@@ -52,8 +55,9 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
 
 主要设计思路和前提：
 - 每个页面都是独立应用，任何不同的页面都维护一个独立 socket，跳转或刷新都断开原有连接，检测触发上报的 event 在 server 不同 socket 对应的接收线程中实现；多用户和多页面对后端等价处理
+  - socket 对应的 connfd 值是每个用户或页面的唯一身份标识
 - 页面上有5种数据交互：
-  - 主动周期 request 的；reg，射频信息…. 
+  - 主动周期 request 的；reg，射频信息 ... 
   - request 一次，webapp 周期 response：rssi
   - request 一次，webapp 回复一次：系统状态请求，服务请求在后台是否正确执行的回复
   - control 一次，webapp 异步传输数据流：CSI，星座图…..
@@ -68,19 +72,198 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
 - 管理数据有2个 destination --- 写文件和前端 display，在 DATA_READY_EVENT 中处理
 
 
+### 流程时序图
+  - 打开或刷新页面，同时打开Rssi和保存Rssi文件，最后关闭页面流程
+    ```mermaid
+      sequenceDiagram
+      participant Server
+      participant NewRecvThread
+      participant EventProcess
+      participant rssi_process_module
+      participant rssi_write_thread
+
+      Server->>EventProcess: Post MSG_ACCEPT_NEW_USER
+      Note over EventProcess: new_user_node()该用户connfd加入列表
+      Note over EventProcess: CreateRecvThread()为该用户创建接收线程 
+      NewRecvThread->>EventProcess: Post MSG_INQUIRY_RSSI 
+      EventProcess->>rssi_process_module: open_rssi_state_external() 
+      Note over rssi_process_module: check connfd 是否在rssi node list
+      Note over rssi_process_module: 若在，直接返回；若不在，打开rssi并加入list
+      rssi_process_module->>EventProcess: 
+      Note over EventProcess: record_rssi_enable() 记录该用户行为
+      NewRecvThread->>EventProcess: Post MSG_CONTROL_RSSI
+      EventProcess->>rssi_process_module: process_rssi_save_file()
+      Note over rssi_process_module: check是否已打开save
+      Note over rssi_process_module: 若enable，直接返回
+      Note over rssi_process_module: 若disable，创建rssi_write_thread()
+      rssi_process_module->>rssi_write_thread: 创建，生成数据缓冲队列
+      Note over rssi_write_thread: 队列取数据，写入文件
+      rssi_process_module->>EventProcess: return
+      Note over EventProcess: record_rssi_save_enable()
+      Note over EventProcess: 通知前端，操作成功
+
+      Note over NewRecvThread: 页面关闭 Thread exit
+      NewRecvThread->>EventProcess: Post MSG_RECEIVE_THREAD_CLOSED
+      Note over EventProcess: del_user()该用户connfd用于离开列表
+      EventProcess->>rssi_process_module: inform_stop_rssi_write_thread()
+      EventProcess->>rssi_process_module: close_rssi_state_external()
+      Note over EventProcess: 释放接收线程资源
+      rssi_process_module->>EventProcess: 确认清除node动作
+      Note over rssi_write_thread: Thread exit
+      rssi_write_thread->>EventProcess: Post MSG_CLEAR_RSSI_WRITE_STATUS
+      Note over EventProcess: clear_rssi_write_status()
+    ```
+
+
+
+### 模块组件功能
+
+**（1）进程通信接口 module**： ```server.c``` 包括socket连接管理和用户接收request信息提取分类
+```mermaid
+  graph LR
+    id1(server)-->id2(socket连接管理)
+    id1(server)-->id3(request信息提取分类)
+    style id1 fill:#f0f,stroke:#333,stroke-width:14px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+```
+
+
+
+
+**（2）事件处理调度 module**：```event_process.c``` 包括处理缓冲队列里的event ， 用户 user node list 管理
+```mermaid
+  graph LR
+    id1(event_process)-->id2(处理缓冲队列里的event)
+    id1(event_process)-->id3(user node list 管理)
+    style id1 fill:#f0f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+```
+
+**（3）rssi 和 reg 处理 module**： ```mosquitto_broker.c``` 包括处理请求 rssi 显示，rssi 文件保存， rssi node list 管理以及请求系统寄存器和相关状态
+```mermaid
+  graph LR
+    id1(mosquitto_broker)-->id2(rssi)
+    id1(mosquitto_broker)-->id3(reg)
+    id1(mosquitto_broker)-->id4(system state)
+    id2(rssi)-->id5(rssi control)
+    id2(rssi)-->id6(rssi save)
+    style id1 fill:#f0f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id4 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id5 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id6 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+    linkStyle 2 stroke:#0ff,stroke-width:2px;
+    linkStyle 3 stroke:#0ff,stroke-width:2px
+    linkStyle 4 stroke:#0ff,stroke-width:2px
+```
+
+  - rssi模块设计包含2个需要控制的状态
+    - Rssi是否打开
+    - Rssi写文件是否打开
+  - rssi状态和rssi save 状态情况列举：因为有rssi显示的页面，连接上就会开启rssi
+    测试case如下：
+      - rssi open，rssi save close，关闭page
+      - Rssi open， rssi save open，关闭page (异常关闭)
+
+
+  - rssi数据控制写文件流程：（同csi数据控制写文件）
+      - 前提：写文件之前，保证rssi读取被打开。
+      - 在webapp中涉及3个线程交互，5个实体（producer，consumer，controller，file，queue）
+      ![rw_file](./picture/rw_file_process.png)
+
+      无论producer是否有数据，控制开始写文件顺序流程如下：
+      1.	open file 
+      2.	create queue
+      3.	start consumer thread
+      4.	write control state variable
+      5.	producer thread controlled by control state variable
+
+      控制关闭写文件，consumer thread 行为由从队列里获取的数据决定 
+
+      控制关闭写文件顺序流程如下：
+      1.  controller 调用关闭保存文件接口inform_stop_rssi_write_thread()
+      2.	producer 往队列里写入一个 len 为 0 的 item，通知 consumer，同时 producer 控制 state variable disable, controller 检查 state disable，确保 producer 不会再往队列里写数据， 保证和 consumer 线程同步 
+      3.	consumer在收到len为0的item后，确认这是队列的最后一个item，postMsg通知主线程消息处理，退出 consumer thread
+      4.	主线程收到消息，关闭 file ， destroy queue
+
+
+**（4）IQ 处理 module**：```dma_handler.c``` 包括处理IQ频谱计算，管理请求信道用户显示的 csi_user_node list 和保存文件的 csi_save_user_node list ，请求星座图用户显示的 constell_user_node list以及处理与前端交互 IQ 数据格式
+```mermaid
+  graph LR
+    id1(dma_handler)-->id2(csi)
+    id1(dma_handler)-->id3(constellation)
+    id2(csi)-->id4(管理请求显示信道用户)
+    id2(csi)-->id5(管理请求保存信道用户)
+    id2(csi)-->id6(IQ 频谱 fft 计算)
+    id3(constellation)-->id7(管理请求显示 constellation 用户)
+    id3(constellation)-->id8(处理IQ 数据格式用于前端显示)
+    style id1 fill:#f0f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id4 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id5 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id6 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id7 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id8 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+    linkStyle 2 stroke:#0ff,stroke-width:2px;
+    linkStyle 3 stroke:#0ff,stroke-width:2px;
+    linkStyle 4 stroke:#0ff,stroke-width:2px;
+    linkStyle 5 stroke:#0ff,stroke-width:2px;
+    linkStyle 6 stroke:#0ff,stroke-width:2px;
+```
+
+**（5）射频信息处理 module**：```rf_module.c``` 包括提供射频信息数据，响应射频的设置操作
+```mermaid
+  graph LR
+    id1(rf_module)-->id2(提供射频信息数据 read)
+    id1(rf_module)-->id3(响应射频的设置操作 write)
+    style id1 fill:#f0f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+```
+
+**（6）系统统计信息处理 module**：```sys_handler.c``` 包括提供系统统计信息, 包括网络统计信息和系统运行时长等；响应设置IP等系统写操作
+```mermaid
+  graph LR
+    id1(sys_handler)-->id2(系统统计信息 read)
+    id1(sys_handler)-->id3(响应系统设置操作 write)
+    style id1 fill:#f0f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+```
+
+**（7）系统log处理 module**：```auto_log.c``` 包括后台自动保存系统状态文件（rssi-snr-distance）以及异常记录文件， 以备查询
+```mermaid
+  graph LR
+    id1(auto_log)-->id2(系统信息log)
+    id1(auto_log)-->id3(系统运行异常log)
+    style id1 fill:#f0f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id2 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    style id3 fill:#f9f,stroke:#333,stroke-width:4px,fill-opacity:0.5
+    linkStyle 0 stroke:#0ff,stroke-width:2px;
+    linkStyle 1 stroke:#0ff,stroke-width:2px;
+```
 
 ***
 
 
-
-### 模块组件
-
-**（1）进程通信模块**： 包括
-**（2）B**
-**（3）A**
-**（4）A**
-
 ## <font color=#0000FF> 信令数据 Json 具体定义</font>
+***
 - 以1秒轮询请求显示寄存器的值为例，前面的是前端读请求json格式，后面是我回复的json格式
   寄存器读request 格式说明看注释
   ```json
@@ -374,7 +557,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "dst": "control app"
   }
   ```
-  页面打开时，该页面的2个开关按钮，dac， Distance app的显示状态，由页面请求的系统状态返回json决定，查看前面的第6项中，系统状态新增字段，用于告知这2个按钮的状态
+页面打开时，该页面的2个开关按钮，dac， Distance app的显示状态，由页面请求的系统状态返回json决定，查看前面的第6项中，系统状态新增字段，用于告知这2个按钮的状态
 
 - 系统信息下的统计信息tab中，如下图所示样式
   ![statis_1](./picture/统计1.png)
@@ -541,9 +724,10 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       "type": 94, // 94：high(open)； 95：normal(close) 
     }
     ```
-
+***
 
 ## <font color=#0000FF> 系统部署以及依赖</font>
+***
 ### Node js 板上安装配置
 - 在板上下载交叉编译后的 Node.js；上板都打包成压缩包 
   ``` tar -xvf node-v12.13.0-linux-armv7l.tar.xz ```
@@ -649,8 +833,9 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
 1.  ``` /run/media/mmcblk1p1/gw_web ``` 路径下 ```web/``` 和 ```xweb/``` 2个目录 ，分别是 webApp 后端程序和 node js 加前端部件
 2.  ```/run/media/mmcblk1p1/lib``` 路径下加入```libgwapp.so``` , ```libfftw3f.so```,```libstdc++.so```等动态库
 3. 浏览器输入 http://192.168.0.77:32000/ 进行访问
-
+***
 ## <font color=#0000FF> 新需求和进度临时记录</font>
+***
 1.  设备运行统计页面显示
       - [ ] 网络流量监控
       - [x] 开机时间统计
@@ -696,9 +881,10 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       - [ ] user node的记录是否需要在底层确认返回后根据返回状态再记录
       - [x] 2019_12_04_Note ： 以前的所有前端对我发来的控制，没有任何错误处理，如rssi 打开，你发给我以后，前端不知道是不是真的打开了。现在我加一个流程： 假设底层控制失败，我会用一个消息异步通知你，如果成功，就没有任何消息给你。如果失败，能不能用弹窗的形式展示给用户知晓，并且页面上的控制按钮的状态也要处于正确的状态
 
-
+***
 
 ## <font color=#0000FF> BUG 跟踪记录</font>
+***
 Issue and bug record list : 
 1.	20191202_bug: fix ---- 开关一次save rssi后，confirm_delete = 1， 同一个页面，再开关save rssi后， rssi_node会被删除， 此时， rssi的读取显示进行中，调用rssi_node后发送接口，出错
 2.	2019120？_buf: fix ---- 调整接口调用顺序，先通知后台服务请求，待请求返回，user node根据返回结果来记录，同待处理需求6
@@ -708,8 +894,10 @@ Issue and bug record list :
 6.	20191214_bug:  ？---- 主动发送系统状态异常和星座图回复数据时，node js端json数据不能完整接收，影响json解析 – frame 中4字节type改为偶数正常接收，改为奇数，接收出错
 7.	20191225_bug:  前端系统信息页面响应显示慢，待处理
 
+***
 
 
+## <font color=#0000FF> Appendix</font>
 
 ```flow
 	st=>start: 开始
@@ -727,18 +915,6 @@ Issue and bug record list :
 	st@>op1({"stroke":"Blue"})@>cond({"stroke":"Green"})@>e({"stroke":"Red","stroke-width":6,"arrow-end":"classic-wide-long"})
 ```
 
-
-## 系统代码设计实现
-[https://github.com/uestclab/RingDemo.git]: https://github.com/uestclab/RingDemo.git
-切换整体方案包括Server和Client，通过网络连接交互
-### Server方案实现
-Server实现方案github连接：[https://github.com/uestclab/RingDemo.git]，开发branch -- develop
-- 地面局域网的网络通信
-  - 基于libevent高并发通信框架实现控制PC和地面各个基站的同时并发通信
-- 切换策略算法
-  - 根据activeBaseStation集合上报的控制信息，每个基站结合列车行进方向对RSSI数据各自加权平均，对加权后的数据中位数大于某个RSSI阈值计数，计数大于count阈值，基站类标记自己为可通信状态。定时采样判决，下一个待切换基站是否处于可通信状态
-- 控制Server和基站交互信令类型格式
-  - RSSI，frameID，trainID，antennaID其中frameID，RSSI是切换的主要交互测量信息，trainID和antennaID用于管理不同的列车和不同的上下行数据链路；信令格式包括控制命令信息。所有消息由protobuf序列化封装传输
 
 ``` C++
 void BaseStation::codec(google::protobuf::Message* message){
@@ -775,17 +951,10 @@ void BaseStation::codec(google::protobuf::Message* message){
 ```
 
 
-## LaTex Math Equations
-
 Inline math equation: $\omega = d\phi /dt$. Display math should get its own line like so :
 $$I = \int \rho R^{2} dV$$
 
 
-</br>
-
-- list 1.1
-
-- list 1.2
 
 ``` flow
 st=>start: start
@@ -796,31 +965,3 @@ st->op->cond
 cond(yes)->e
 cond(no)->op
 ```
-
-
-
-- [ ] 未完成事项
-- [x] 已完成事项
-
-***
-```mermaid
-  gantt
-  dateFormat  YYYY-MM-DD
-  title 软件开发甘特图
-  section 设计
-  需求                      :done,    des1, 2014-01-06,2014-01-08
-  原型                      :active,  des2, 2014-01-09, 3d
-  UI设计                     :         des3, after des2, 5d
-  未来任务                     :         des4, after des3, 5d
-  section 开发
-  学习准备理解需求                      :crit, done, 2014-01-06,24h
-  设计框架                             :crit, done, after des2, 2d
-  开发                                 :crit, active, 3d
-  未来任务                              :crit, 5d
-  耍                                   :2d
-  section 测试
-  功能测试                              :active, a1, after des3, 3d
-  压力测试                               :after a1  , 20h
-  测试报告                               : 48h
-```
-***
