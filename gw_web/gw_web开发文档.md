@@ -80,7 +80,467 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
 **（3）A**
 **（4）A**
 
-## 信令数据 Json 具体定义
+## <font color=#0000FF> 信令数据 Json 具体定义</font>
+- 以1秒轮询请求显示寄存器的值为例，前面的是前端读请求json格式，后面是我回复的json格式
+  寄存器读request 格式说明看注释
+  ```json
+  {
+    "comment": "comment", // 该字段用于简单描述该json的内容，用于debug
+    "type": 31, //反序列化过程中根据type选择不同解析方式
+    "dst": "reg",//用于指示不同设备模块，reg寄存器，rf射频之类
+    "timer": 1,// 若轮询周期为1秒，该字段由前端填写，告知webApp
+    "op_cmd": 0 // 指示读写请求，1：写请求，0：读请求，写请求格式稍后定义
+  }
+  ```
+  寄存器读response格式：
+  ```json
+  {
+    "comment": "comment",
+    "type": 32,// 同帧格式中的type，反序列化过程中根据type选择不同解析方式
+    "timer": 1,// 对应请求的轮询时间，填写在response中
+    //该字段是webapp回复的显示寄存器请求的值,以数组形式返回
+    "ret_value ": [
+      {
+        "name": "power_est_latch", // name用于区分寄存器值，名字与图片同名
+        "data_type": "unsigned int",// 用于在读取value之前确定读取数据类型，不确定我们之间交互需要吗
+        "value": 11
+      },
+      {
+        "name": "coarse_low16",
+        "data_type": "unsigned int",
+        "value": 11
+      },
+      {
+        "name": "fine_high16",
+        "data_type": "unsigned int",
+      "value": 11
+      },
+      {
+        "name": "freq_offset",
+        "data_type": "double",
+        "value": 12.22
+      },
+      {
+      // 该name对应图片中的BPSK，QPSK，16QAM指示灯状态，初始态为黑，value：0，BSPK灯绿，其他黑，value：1，QPSK灯绿，其他黑，value：2，16QAM灯绿，其他黑
+        "name": "tx_modulation", 
+        "data_type": "int",
+        "value": 1
+      },
+      {
+      // 该name对应图片中dac state指示灯状态，1：灯绿，0：灯红，初始态为黑
+        "name": "dac_state",
+        "data_type": "int",
+        "value": 1
+      },
+      // snr和distance唯一区别其他寄存器的在于这两个寄存器的值还需要同时实时绘制出strip chart图形，snr纵轴范围(0.0 ~50.0) 单位db，纵轴间隔5, distance纵轴范围(0.0~800.0)单位meter，纵轴间隔20，所有的横轴长度为(0~99)显示最近100个采样点绘制的曲线
+      {
+        "name": "snr",
+        "data_type": "double",
+        "value": 10.25
+
+      }，
+      {
+        "name": "distance",
+        "data_type": "double",
+        "value": 100.25
+
+      }
+    ]
+  }
+  ```
+  Note：寄存器读取，在进入设备参数页面后就自动实时开始轮询请求，不需要外部按钮控制
+- Rssi也是进入参数页面自动轮询请求，但RSSI数据文件保存需要外部按钮控制，且能提示输入保存 文件名，request json 交互如下：
+  相比reg请求，字段值不同
+  ```json
+  {
+    "comment": "comment", 
+    "type": 41, // type不同
+    "dst": "rssi",//指示为rssi模块
+    "timer": 1,// 若轮询周期为1秒
+    "op_cmd": 0 
+  }
+  ```
+  response格式如下：
+  ```json
+  {
+    "comment": "comment",
+    "type": 42,
+    "timer": 1,
+    "ret_value": [
+      {
+        "name": "rssi ",
+        "data_type": "double",
+    //Note：画图时纵轴范围（-71 ~ 20）单位db, 纵轴间隔10，所有的横轴长度为(0~99)显示最近100个采样点绘制的曲线
+    "value": -50.50 
+      }
+    ]
+  }
+  ```
+  保存文件控制按钮有2个状态，start和stop，流程如下： 1. 按下start按钮后，提示输入自定义文件名，同时按钮变为stop；2.输入完成提交后，通过Json把该文件名和控制命令通过Json发送到webApp；
+  Json请求格式如下
+  ```json
+  {
+    "comment": "comment",
+    "type": 43,
+    "dst": "rssi",
+    "op_cmd": 1,
+    "file_name": "filename"
+  }
+  ```
+  同时在点击stop按钮后，提供下载该文件的功能
+
+- CSI(信道状态信息)和Constellation(星座图)部分，控制和RSSI部分相似，略有不同，RSSI打开后，关闭不用外部控制，CSI和Constellation开启和关闭都需要外部控制
+  打开和关闭CSI请求json如下：
+  ```json
+  {
+    "comment": "comment", 
+    "type": 51, // 51：start csi ； 52：stop csi
+    "dst": "csi"//指示为csi模块
+  }
+  ```
+  CSI图形展示包括2个，幅度频谱图和时域图，大概如下
+  ![IQ_1](./picture/IQ.png)
+  CSI也和RSSI有个类似的存储文件功能，请求格式如下:
+  ```json
+  {
+    "comment": "comment",
+    "type": 53,
+    "dst": "csi",
+    "op_cmd": 1, // 1 : start save , 0: stop save
+    "file_name": "filename" // 在op_cmd为1时，需要带用户自定义文件名
+  }
+  ```
+  同样，提供一个用户点击的下载按钮，该下载仅由你控制用于向用户提供在特定文件路径下的文件下载功能.
+
+  回复的json 长度可能在 10000个字节左右，用于显示的幅度频谱和时域的数据的格式如下：
+  ```json
+  {
+    "comment": "comment",
+    "type": 54,
+    “array_number”: 2, //此处代表有2个数组
+    "ret_spectrum_array ": [
+      {
+        "value": XX  // int 类型 频谱数据
+      }
+      ……….. // 有256个
+    ],
+    “ret_time_array”: [
+      {
+        “value”: XX  // int类型 时域数据
+      }
+        ……….. // 有256个
+    ]
+  }
+  ```
+  为控制传输json字节数大小，传输都截断为int传输，其中时域数据是 *10000以后截断为int传输，此数据在前端/10000恢复。
+
+  Constellation没有存储文件的功能需求，仅有打开和关闭控制
+	打开和关闭Constellation请求json如下:
+  ```json
+  {
+    "comment": "comment", 
+    "type": 61, // 61：start constellation ； 62：stop constellation
+    "dst": "constellation"//指示为constellation模块
+  }
+  ```
+  Constellation图形展示仅一个，星座散点图，大概如下，横纵坐标范围都是-100 ~ 100，间隔40为一格，注意图上的红点，需要标识出来，包括线之间的交点 16个，还有4个线中点，共20个
+  ![constell](./picture/constell.png)
+
+  星座图IQ数据回复，大概每100ms 更新一次数据，json长度大概为10000个字节左右，回复json格式如下:
+  ```json
+  {
+    "comment":	"constell_data_response",
+    "type":	63,
+    "array_number":	1000,
+    "ret_iq_array":	[[-18, -70], [20, 70], [66, -66], [24, 66], ……..[70, 22], [68, 20]]
+  }
+  ```
+- 系统状态请求，每个页面打开后，都需要先请求一次系统状态，系统状态正常了，才进行其他操作，若不正常，等待正常的异步通知
+  ```json
+  {
+    "comment": "comment", 
+    "type": 1, 
+    "dst": "mon",
+    "op_cmd": 0 
+  }
+  ```
+	若系统正常，回复中包括fpga版本和软件版本信息，回复如下：
+  ```json
+  {
+    "comment": "system is ready"",
+    "type": 2,
+    "array_number": 3,
+    "ret_value": [
+    {
+      "name": "system_state",
+      "data_type": "int",
+      "value": 1
+    },
+    {
+      "name": "fpga_version",
+      "data_type": "string",
+      "value": "2019112517454"
+    },
+    {
+      "name": "soft_version",
+      "data_type": "string",
+      "value": "Nov 21 2019 - 18:06:08"
+    },
+    {
+      "name": "dac_state",
+      "value": 1 // 1：dac 打开， 0：dac 未打开
+    },
+    {
+      "name": "distance_app_state",
+      "value": 1 // 1: app 打开， 0：app 未打开
+    },
+    {
+      "name": "frequency",
+      "value": 75750
+    },
+    {
+      "name": "tx_power",
+      "value": 1 // 1: 打开， 0：未打开
+    },
+    {
+      "name": "rx_gain",
+      "value": 1 // 1: 打开， 0：未打开
+    }
+    ]
+  }
+  ```
+  若系统异常，回复中只包括system state字段，回复如下：
+  ```json
+  {
+    "comment": "system is not ready"",
+    "type": 2,
+    "array_number": 1,
+    "ret_value": [
+    {
+      "name": "system_state",
+      "data_type": "int",
+      "value": 0
+    }
+    ]
+  }
+  ```
+  Note：type字段为2，代表是回复前端的请求，若type字段为3，则代表是异步发送给你的系统状态，需要及时响应处理
+  System state在每个页面上都显示出来，而fpga，soft version只在系统页面上显示
+
+  系统状态请求，每个页面打开后，都需要先请求一次系统状态，系统状态正常了，才进行其它操作
+- CSI(信道状态信息)和Constellation(星座图) 互斥操作交互定义，不管CSI或者星座图是不是同一个页面，它们之间都是互斥的，不能同时打开
+前端不需要记录他们的互斥状态，只需要根据后端返回的状态码，对按钮的操作进行响应。
+情况1： CSI被一个页面打开使能，正在展示中，另一个页面或者同页面的星座图被用户点击打开绘图，此时星座图打开绘图消息从前端发送到后端，后端根据系统状态，不进行星座图打开操作，同时发送互斥状态码通知前端，前端收到该互斥状态码后，通过弹框的形式告知用户
+情况2： 星座图被一个页面打开使能，则用户打开CSI绘图时，前端会收到互斥状态码，弹框告知用户
+情况3： CSI或者星座图没有被任何用户页面打开使能，用户打开其中任何一个绘图操作，此时后端正确使能操作后返回操作成功状态码，前端收到该状态码后不做任何响应，若后端返回操作失败状态码，前端对此状态码通过弹框形式告知用户操作失败
+不仅针对开关CSI或者星座图的使能按钮，如CSI存文件，RSSi存文件这些通过按钮通知后端的操作，也适用以下交互接口
+后端通知node js交互接口如下：
+  ```json
+  {
+    "comment":      "cmd_state_response_json",
+    "type": 70,
+    "cmd_state":    0
+  }
+  ```
+  cmd_state为返回操作状态码，定义如下：
+  0 ： 操作成功，此时前端不做响应动作
+  -1： 操作失败，前端收到操作失败状态码，弹框提示用户操作失败
+  2： CSI或星座图存在一方已经打开，前端收到该互斥状态码，弹框提示用户操作互斥 ---- a. CSI已经打开，用户尝试打开星座图时，前端收到互斥状态码后，提示用户 “CSI工作中，无法打开星座图”；b. 星座图已经打开，用户尝试打开CSI时，前端收到互斥状态码后，提示用户 “星座图工作中，无法打开CSI”；
+- 开始增加写接口，在主页面的参数设置中，先增加3个控制接口：开关dac，开关distance app以及清除log文件按钮
+前2个开关按钮，前端对他们的操作和之前的开关csi等相似，并且后端也会返回类似操作成功或失败的回复，图标样式如下：
+![tmp2](./picture/tmp2.png)
+打开和关闭dac请求json如下：
+  ```json
+  {
+    "comment": "dac", 
+    "type": 73, // 73：open dac ； 74：close dac
+    "dst": "dac"
+  }
+  ```
+  打开和关闭distance app请求json如下：
+  ```json
+  {
+    "comment": "distance app", 
+    "type": 71, // 71：open distance app ； 72：close distance app
+    "dst": "control app"
+  }
+  ```
+  清除log文件按钮，就是一个clear log字样，点击后转圈表示进行中，等后端回复的操作成功后，转圈结束
+  请求json如下：
+  ```json
+  {
+    "comment": "clear log", 
+    "type": 75, 
+    "dst": "control app"
+  }
+  ```
+  页面打开时，该页面的2个开关按钮，dac， Distance app的显示状态，由页面请求的系统状态返回json决定，查看前面的第6项中，系统状态新增字段，用于告知这2个按钮的状态
+
+- 系统信息下的统计信息tab中，如下图所示样式
+  ![statis_1](./picture/统计1.png)
+  ![statis_2](./picture/统计2.png)
+  说明： 包括2个部分，以太网统计和link 统计，其中以太网部分只要64 Byte到above 1519 byte这些统计数据，Rx和Tx的都要；link 统计部分Frequency Offset，SNR，Bandwidth， Modulation，还有累计运行时间都需要
+
+  这个页面这些数据的内容也是前端1s周期来请求获取，我返回对应的json数据
+  请求json如下：
+  ```json
+  {
+    "comment": "statistics", 
+    "type": 81
+  }
+  ```
+  回复json如下：
+  ```json
+  {
+    "comment": "statistics response"",
+    "type": 82,
+    "array_number": 12,
+    "ret_value": [
+      {
+        "name": "64bytes",
+        "rx_value": 100, // 对应图片RX值
+        "tx_value": 1   // 对应图片TX值
+      },
+      {
+        "name": "below_127bytes",
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "below_255bytes",
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "below_511bytes",
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "below_1023bytes",
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "below_1518bytes",
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "above_1519bytes",
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "Frequency_Offset",  //显示加上 KHZ单位
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "SNR",   //显示加上 dB单位
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "Bandwidth",  //显示加上 MHZ单位
+        "rx_value": 100,
+        "tx_value": 1
+      },
+      {
+        "name": "Modulation",  //这里直接返回字符串到前端显示
+        "rx_value": "128QAM",  
+        "tx_value": "QPSK"
+      },
+      {
+        "name": "acc_seconds", //显示加上 Sec单位
+        "value": 1034
+      }
+    ]
+  }
+  ```
+- 控制设备的IP设置tab中，填写完成后，点击submit按钮，填写内容以string的形式发送json到后端，json格式如下：
+  ```json
+  {
+    "comment": "ip setting", 
+    "type":76, 
+    "ip": "192.168.10.88"，
+    "mask": "255.255.255.0",
+    "gate": "192.168.10.1",
+    "dns": "192.168.1.1"
+  }
+  ```
+  其中所有的reset按钮点击后，发送json格式如下：
+  ```json
+  {
+    "comment": "reset", 
+    "type":77
+  }
+  ```
+- 控制设备的射频设置tab中，显示下图中红圈中的内容2样式；射频信息栏中显示的射频信息，展示图中红圈的内容1
+  ![rf_setting](./picture/RF设置.png)
+  - 射频信息展示：暂时包括 Frequency， Power ，Tx Power ， Rx Gain。前端1s周期请求后端 ， Tx Power和Rx gain是做灯显示还是文字显示看美观
+  请求格式如下：
+    ```json
+    {
+      "comment": "RF info", 
+      "type": 83
+    }
+    ```
+    后端回复格式如下：
+    ```json
+    {
+      "comment": "RF_info",
+      "type": 84,
+      "array_number": 4,
+      "ret_value": [
+        {
+          "name": "frequency", // 显示加单位MHZ
+          "value": 1
+        },
+        {
+          "name": "power",  // 显示加单位dBm
+          "value": 1
+        },
+        {
+          "name": "tx_power",  // 1：显示ON，0：显示OFF
+          "value": 1  
+        },
+        {
+          "name": "rx_gain",  // 1：显示High，0：显示Normal
+          "value": 1
+        }
+      ]
+    }
+    ```
+
+  - 射频设置，在该tab中，需要RF setting Frequency，Tx Power控制开关，Rx gain控制开关，其中Frequency用图中所示加减的样式，显示的初值根据请求查询的结果显示，方式同系统设置tab
+    当用户切换到射频设置tab页面时，先向后端系统请求(同前面第6小节)，回复的系统请求中新增对应字段，前端根据返回值初始这些按钮和框中的初值。
+    用户在Rf setting中利用加减号或直接自己填写都可以，该设置需要submit按	    钮使通知后端，同时reset按钮重启设备后生效。
+    点击 submit 后，发送后端 json 格式：
+    ```json
+    {
+      "comment": "frequency setting", 
+      "type":91, 
+      "frequency": 75750   // 注意，这里传整形还是字符串看前端实现方便
+    }
+    ```
+    Reset 按钮同之前的 json，所有的 reset 按钮都是同样的 json 格式
+
+    Tx power控制开关和Rx gain控制开关的控制方式同系统设置中的dac开关
+    开关Tx Power请求json如下：
+    ```json
+    {
+      "comment": "tx power", 
+      "type": 92, // 92：open； 93：close 
+    }
+    ```
+    开关Rx gain请求json如下：
+    ```json
+    {
+      "comment": "rx gain", 
+      "type": 94, // 94：high(open)； 95：normal(close) 
+    }
+    ```
 
 
 ## <font color=#0000FF> 系统部署以及依赖</font>
@@ -134,7 +594,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     ```
     通过```ping www.baidu.com```实验联网是否成功
 
-1. 设置 NODE_PATH
+2. 设置 NODE_PATH
     ``` bash
     internal/modules/cjs/loader.js:797
       throw err;
@@ -161,7 +621,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     若出现上述错误，需要配置 NODE_PATH
     ``` export NODE_PATH="/run/media/mmcblk1p1/node-v12.13.0-linux-armv7l/lib/node_modules" ```
 
-1. 通过npm下载包
+3. 通过npm下载包
     下载express
     ``` shell
     root@jw:~/node-v12.13.0-linux-armv7l/lib/node_modules# npm install express --save -g
@@ -185,37 +645,68 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     socket.io@2.3.0
     added 41 packages from 33 contributors in 28.303s
     ```
+### gw_web板上配置
+1.  ``` /run/media/mmcblk1p1/gw_web ``` 路径下 ```web/``` 和 ```xweb/``` 2个目录 ，分别是 webApp 后端程序和 node js 加前端部件
+2.  ```/run/media/mmcblk1p1/lib``` 路径下加入```libgwapp.so``` , ```libfftw3f.so```,```libstdc++.so```等动态库
+3. 浏览器输入 http://192.168.0.77:32000/ 进行访问
 
 ## <font color=#0000FF> 新需求和进度临时记录</font>
-1.	射频显示 – not start
-2.	Cst 和星座图显示 cst—done , 星座图还需调试(IQ顺序，IQ的量化值，显示的流畅度)
-3.	系统mon报出异常，处理流程 --- 待处理
-4.	页面优化持续 --- 持续进行
-5.	不同用户的页面内容权限 --- 待处理
-6.	user node的记录是否需要在底层确认返回后根据返回状态再记录 --- 待处理
-7.	前端用户对设备的写操作 --- 待处理
-8.	代码优化 --- 待处理
-a.	List的查询遍历和删除遍历待优化，重复代码稍多
-9.	清理前端逻辑，前端不要有任何状态记录，socket的维护除外。前端只用于展示数据
-进度：
-1.	完成rssi， reg 显示， 包括数值和流形图
-2.	简单用户log登录，和设备操作日志记录
-3.	多页面或用户登录初步测试通过
-4.	Rssi save控制初步测试通过，下载组件功能测试通过 ，需要删除文件的按钮？ -- done
-5.	控制用户修改设备IP地址等信息
-6.	前端提供删除板上log文件的功能按钮 -- done
-7.	Web前端提供测距的按钮，用于启动测距程序，测距程序和切换程序无法同时暂用空口frame信令资源 -- done
-8.	Web前端提供开关dac的按钮 -- done
-9.	写页面的按钮的初始状态在页面打开时，先请求后端，根据返回决定按钮状态, 每个页面打开都会请求系统状态， 根据系统状态的返回获取，进而显示
-10.	类似监控网络流量的功能
-11.	设备开机后，自动存系统状态文件（未定义）
-12.	设备上的时间处理？（每次设备的开机时间都是一样）
-13.	多一个统计页面，包括以太网信息统计，工作时长之类
-14.	把IP，Mask 设置加进去，修改后重启生效；设置页面里面用tab来切换到不同设置项
-15.	射频信息：1. 显示---频率， 功率， Tx Power状态，RX gain 状态； 2. 设置---频率，设置Tx Power， Rx gain
+1.  设备运行统计页面显示
+      - [ ] 网络流量监控
+      - [x] 开机时间统计
+2.  系统信息页面
+      - [ ] IP，温度显示错误，微波电流移入射频模块
+      - [x] 设备开机后，自动存系统状态文件（rssi-snr-distance），异常记录文件（LOG_RADIO_EXCEPTION
+3.	系统mon报出异常，处理流程
+      - [ ] 系统报出异常，页面需弹框提示用户
+      - [x] 异常记录文件写入（LOG_RADIO_EXCEPTION）
+4.	基带模块
+      - [ ] 未完成事项
+      - [x] rssi ，reg 显示，包括数值和流形图
+      - [x] rssi文件保存，下载
+5.	IQ信息模块
+      - [ ] 星座图增强显示最高 128QAM（IQ值变化？与前端交互变化？）
+      - [x] CSI 和星座图显示
+      - [x] CSI文件保存下载
+6.	射频模块
+      - [ ] 显示---频率， 功率， Tx Power状态，RX gain 状态
+      - [x] 设置---频率，设置Tx Power， Rx gain
+7.	前端用户对设备的写操作
+      - [ ] 控制用户修改设备IP地址等信息
+      - [x] 前端提供删除板上log文件的功能按钮
+      - [x] Web前端提供开关dac的按钮
+      - [x] 写页面的按钮的初始状态在页面打开时，先请求后端，根据返回决定按钮状态, 每个页面打开都会请求系统状态， 根据系统状态的返回获取，进而显示
+      - [x] 如IP设置，射频设置序修改后重启生效
+8.  前端启动板上应用
+      - [x] Web前端提供测距的按钮，用于启动测距程序，测距程序和切换程序无法同时占用空口frame信令资源
+9.	前端页面优化持续 --- 持续进行
+      - [ ] 美观，功能调整
+10.	前端用户登录，用户权限开放
+      - [ ] 不同用户的页面内容权限
+      - [ ] 简单用户log登录，和设备操作日志记录
+      - [x] 多页面或用户登录初步测试通过
+11.	清理前端逻辑，前端不要有任何状态记录，socket的维护除外。前端只用于展示数据
+进度
+      - [ ] 未完成事项
+      - [x] 已完成事项
+12.	代码优化 --- 待处理
+      - [ ] List的查询遍历和删除遍历待优化，重复代码稍多
+      - [x] 已完成事项
+13.	webApp内部机制
+      - [ ] user node的记录是否需要在底层确认返回后根据返回状态再记录
+      - [x] 2019_12_04_Note ： 以前的所有前端对我发来的控制，没有任何错误处理，如rssi 打开，你发给我以后，前端不知道是不是真的打开了。现在我加一个流程： 假设底层控制失败，我会用一个消息异步通知你，如果成功，就没有任何消息给你。如果失败，能不能用弹窗的形式展示给用户知晓，并且页面上的控制按钮的状态也要处于正确的状态
+
+
 
 ## <font color=#0000FF> BUG 跟踪记录</font>
-
+Issue and bug record list : 
+1.	20191202_bug: fix ---- 开关一次save rssi后，confirm_delete = 1， 同一个页面，再开关save rssi后， rssi_node会被删除， 此时， rssi的读取显示进行中，调用rssi_node后发送接口，出错
+2.	2019120？_buf: fix ---- 调整接口调用顺序，先通知后台服务请求，待请求返回，user node根据返回结果来记录，同待处理需求6
+3.	20191206_bug: fix ---- Find node in node list时注意list遍历时，不能直接返回遍历指针。若没有找到，遍历指针指向node list最后一个元素，返回出错。List的查询遍历和删除遍历都适用，唯一不同：查询的node不一定在list中，但删除遍历时node一定在list中
+4.	Webapp在csi打开情况下，cpu占用高，a. 同时devAapter的cpu占用也高，意味在现有情况下，两者不能同时启用; b. 修正IQ数据量小的情况下，显示输出的动态调整简易方案：在回调中定时延迟
+5.	20191213_bug:  fix ---- 星座图回复json数据量过大，server的sendbuf 长度不够
+6.	20191214_bug:  ？---- 主动发送系统状态异常和星座图回复数据时，node js端json数据不能完整接收，影响json解析 – frame 中4字节type改为偶数正常接收，改为奇数，接收出错
+7.	20191225_bug:  前端系统信息页面响应显示慢，待处理
 
 
 
@@ -236,22 +727,6 @@ a.	List的查询遍历和删除遍历待优化，重复代码稍多
 	st@>op1({"stroke":"Blue"})@>cond({"stroke":"Green"})@>e({"stroke":"Red","stroke-width":6,"arrow-end":"classic-wide-long"})
 ```
 
- 
-
-
-## 待测试验证testcase
-![下行射频干扰测试](https://github.com/uestclab/MyPostImag/blob/master/2.PNG?raw=true)
-下行切换过程中，存在源基站和目标基站同时开启PA的时刻，存在2种情况
-- 源基站发射业务数据，目标基站开启PA，发射采样基带噪声信号
-   - 源基站发射业务数据，目标基站与源基站距离间隔1km，此时目标基站开启PA，观测接收机能否正常解调业务数据
-- 源基站关闭PA发射基带噪声信号，目标基站发射业务数据；针对以上情况，测试接收机能否正常解调业务数据
-   - 目标基站发射业务数据，目标基站与源基站距离间隔1km，此时源基站关闭PA，观测接收机能否正常解调业务数据
-***
-测试用例根据业务数据要求分成2个测试用例
-- 业务数据是视频业务，观测目标基站开启PA是否对视频业务产生停顿或明显的花屏
-- 业务数据是连续ID编号testData，观测目标基站开启PA是否对testData的接收出现掉包或不完整；
-
-根据射频的发射功率大小，在源基站和目标基站发射功率一致的情况下测试不同发射功率的情况下的影响是否不同？理论上发射功率大，干扰噪声信号虽然加大，但在误码率曲线上是在高SNR范围动态回退几个db，误码率情况应该比低SNR情况下好。
 
 ## 系统代码设计实现
 [https://github.com/uestclab/RingDemo.git]: https://github.com/uestclab/RingDemo.git
