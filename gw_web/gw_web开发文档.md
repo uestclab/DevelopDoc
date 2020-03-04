@@ -273,7 +273,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "type": 31, //反序列化过程中根据type选择不同解析方式
     "dst": "reg",//用于指示不同设备模块，reg寄存器，rf射频之类
     "timer": 1,// 若轮询周期为1秒，该字段由前端填写，告知webApp
-    "op_cmd": 0 // 指示读写请求，1：写请求，0：读请求，写请求格式稍后定义
+    "op_cmd": 0, // 指示读写请求，1：写请求，0：读请求，写请求格式稍后定义
+    "terminal_id": id
   }
   ```
   寄存器读response格式：
@@ -341,6 +342,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "type": 41, // type不同
     "dst": "rssi",//指示为rssi模块
     "timer": 1,// 若轮询周期为1秒
+    "terminal_id": id,
     "op_cmd": 0 
   }
   ```
@@ -368,7 +370,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "type": 43,
     "dst": "rssi",
     "op_cmd": 1,
-    "file_name": "filename"
+    "file_name": "filename",
+    "terminal_id": id
   }
   ```
   同时在点击stop按钮后，提供下载该文件的功能
@@ -379,7 +382,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "comment", 
     "type": 51, // 51：start csi ； 52：stop csi
-    "dst": "csi"//指示为csi模块
+    "dst": "csi",//指示为csi模块
+    "terminal_id": id
   }
   ```
   CSI图形展示包括2个，幅度频谱图和时域图，大概如下
@@ -391,7 +395,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "type": 53,
     "dst": "csi",
     "op_cmd": 1, // 1 : start save , 0: stop save
-    "file_name": "filename" // 在op_cmd为1时，需要带用户自定义文件名
+    "file_name": "filename", // 在op_cmd为1时，需要带用户自定义文件名
+    "terminal_id": id
   }
   ```
   同样，提供一个用户点击的下载按钮，该下载仅由你控制用于向用户提供在特定文件路径下的文件下载功能.
@@ -424,7 +429,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "comment", 
     "type": 61, // 61：start constellation ； 62：stop constellation
-    "dst": "constellation"//指示为constellation模块
+    "dst": "constellation",//指示为constellation模块
+    "terminal_id": id
   }
   ```
   Constellation图形展示仅一个，星座散点图，大概如下，横纵坐标范围都是-100 ~ 100，间隔40为一格，注意图上的红点，需要标识出来，包括线之间的交点 16个，还有4个线中点，共20个
@@ -445,13 +451,15 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "comment", 
     "type": 1, 
     "dst": "mon",
+    "remote_time": "2020-03-04 11:25:00", //年月日分秒
+    "terminal_id": id,
     "op_cmd": 0 
   }
   ```
-	若系统正常，回复中包括fpga版本和软件版本信息，回复如下：
+	若系统正常，回复中包括fpga版本和软件版本信息，部分按钮的初始显示状态一并在请求系统json中响应，回复如下：
   ```json
   {
-    "comment": "system is ready"",
+    "comment": "system is ready",
     "type": 2,
     "array_number": 3,
     "ret_value": [
@@ -496,7 +504,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   若系统异常，回复中只包括system state字段，回复如下：
   ```json
   {
-    "comment": "system is not ready"",
+    "comment": "system is not ready",
     "type": 2,
     "array_number": 1,
     "ret_value": [
@@ -538,7 +546,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "dac", 
     "type": 73, // 73：open dac ； 74：close dac
-    "dst": "dac"
+    "dst": "dac",
+    "terminal_id": id,
   }
   ```
   打开和关闭distance app请求json如下：
@@ -546,7 +555,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "distance app", 
     "type": 71, // 71：open distance app ； 72：close distance app
-    "dst": "control app"
+    "dst": "control app",
+    "terminal_id": id,
   }
   ```
   清除log文件按钮，就是一个clear log字样，点击后转圈表示进行中，等后端回复的操作成功后，转圈结束
@@ -555,7 +565,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "clear log", 
     "type": 75, 
-    "dst": "control app"
+    "dst": "control app",
+    "terminal_id": id,
   }
   ```
 页面打开时，该页面的2个开关按钮，dac， Distance app的显示状态，由页面请求的系统状态返回json决定，查看前面的第6项中，系统状态新增字段，用于告知这2个按钮的状态
@@ -570,13 +581,14 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   ```json
   {
     "comment": "statistics", 
-    "type": 81
+    "type": 81,
+    "terminal_id": id,
   }
   ```
   回复json如下：
   ```json
   {
-    "comment": "statistics response"",
+    "comment": "statistics response",
     "type": 82,
     "array_number": 12,
     "ret_value": [
@@ -647,17 +659,19 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "ip setting", 
     "type":76, 
-    "ip": "192.168.10.88"，
+    "ip": "192.168.10.88",
     "mask": "255.255.255.0",
     "gate": "192.168.10.1",
-    "dns": "192.168.1.1"
+    "dns": "192.168.1.1",
+    "terminal_id": id
   }
   ```
   其中所有的reset按钮点击后，发送json格式如下：
   ```json
   {
     "comment": "reset", 
-    "type":77
+    "type":77,
+    "terminal_id": id
   }
   ```
 - 控制设备的射频设置tab中，显示下图中红圈中的内容2样式；射频信息栏中显示的射频信息，展示图中红圈的内容1
@@ -667,7 +681,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     ```json
     {
       "comment": "RF info", 
-      "type": 83
+      "type": 83,
+      "terminal_id": id
     }
     ```
     后端回复格式如下：
@@ -675,7 +690,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "RF_info",
       "type": 84,
-      "array_number": 4,
+      "array_number": 12,
       "ret_value": [
         {
           "name": "frequency", // 显示加单位MHZ
@@ -692,7 +707,39 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
         {
           "name": "rx_gain",  // 1：显示High，0：显示Normal
           "value": 1
-        }
+        },
+        {
+          "name": "local_lock_state", // 显示单位 V --- Vadc1=(ADC Code/1024)*5V ; Vadc1＜2V：失锁 ; Vadc1≥2V：锁定
+          "value":        1
+        },
+        {
+          "name": "rf_temper",
+          "value":        50.6   // 显示单位 ℃
+        },
+        {
+          "name": "rf_current",  // 显示单位 A
+          "value":        2.5
+        },
+        {
+          "name": "bb_current", // 显示单位 A
+          "value":        1.85
+        },
+        {
+          "name": "device_temper", // 显示单位 ℃
+          "value":        52.78
+        },
+        {
+          "name": "bb_vs",        // 显示单位 mv
+          "value":        988.76 
+        },
+        {
+          "name": "adc_temper",  // 显示单位 ℃
+          "value":        52.9
+        },
+        {
+          "name": "zynq_temper", // 显示单位 ℃
+          "value":        61.5
+        },
       ]
     }
     ```
@@ -705,7 +752,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "frequency setting", 
       "type":91, 
-      "frequency": 75750   // 注意，这里传整形还是字符串看前端实现方便
+      "frequency": 75750,   // 注意，这里传整形还是字符串看前端实现方便
+      "terminal_id": id
     }
     ```
     Reset 按钮同之前的 json，所有的 reset 按钮都是同样的 json 格式
@@ -716,6 +764,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "tx power", 
       "type": 92, // 92：open； 93：close 
+      "terminal_id": id
     }
     ```
     开关Rx gain请求json如下：
@@ -723,6 +772,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "rx gain", 
       "type": 94, // 94：high(open)； 95：normal(close) 
+      "terminal_id": id
     }
     ```
 ***
@@ -833,7 +883,9 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
 ### gw_web板上配置
 1.  ``` /run/media/mmcblk1p1/gw_web ``` 路径下 ```web/``` 和 ```xweb/``` 2个目录 ，分别是 webApp 后端程序和 node js 加前端部件
 2.  ```/run/media/mmcblk1p1/lib``` 路径下加入```libgwapp.so``` , ```libfftw3f.so```,```libstdc++.so```等动态库
-3. 浏览器输入 http://192.168.0.77:32000/ 进行访问
+3.  启动脚本在 ``` /run/media/mmcblk1p1/script ``` 相关脚本包括 ``` test_distance.sh ``` 和 ``` run_web.sh ```
+    - pm2 容器管理 node
+4.  浏览器输入 http://192.168.0.77:32000/ 进行访问
 ***
 ## <font color=#0000FF> 新需求和进度临时记录</font>
 ***
@@ -845,7 +897,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       - [x] 设备开机后，自动存系统状态文件（rssi-snr-distance），异常记录文件（LOG_RADIO_EXCEPTION）
 3.	系统mon报出异常，处理流程
       - [x] 开机时设备未准备好弹框提示，待准备好弹框提示   
-      - [ ] 运行时系统报出异常，页面需弹框提示用户 -- task
+      - [ ] 运行时系统报出异常，页面需弹框提示用户,系统恢复后弹框包括提示用户刷新 -- task
       - [x] 异常记录文件写入（LOG_RADIO_EXCEPTION）
 4.	基带模块
       - [ ] 未完成事项
@@ -857,7 +909,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       - [x] CSI 和星座图显示
       - [x] CSI文件保存下载
 6.	射频模块
-      - [ ] 显示---频率， 功率， Tx Power状态，RX gain 状态 -- task
+      - [ ] 显示---射频信息，显示完成，i2c操作还有问题 -- task
       - [x] 设置---频率，设置Tx Power， Rx gain
 7.	前端用户对设备的写操作
       - [ ] 控制用户修改设备IP地址等信息 -- task
@@ -868,6 +920,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       - [x] 如IP设置，射频设置序修改后重启生效
 8.  前端启动板上应用
       - [x] Web前端提供测距的按钮，用于启动测距程序，测距程序和切换程序无法同时占用空口frame信令资源
+      - [x] pm2 自启动管理pw
 9.	前端页面优化持续 --- 持续进行
       - [ ] 美观，功能调整
 10.	前端用户登录，用户权限开放
@@ -875,6 +928,7 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       - [ ] 不同用户的页面内容权限
       - [ ] 简单用户log登录，和设备操作日志记录
       - [ ] 日志信息页面内容说明
+      - [ ] 前端获取浏览器时间，通过接入消息传送给后端
       - [x] 多页面或用户登录初步测试通过
 11.	清理前端逻辑，前端不要有任何状态记录，socket的维护除外。前端只用于展示数据
 进度
@@ -885,9 +939,11 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       - [x] 已完成事项
 13.	webApp内部机制
       - [ ] user node的记录是否需要在底层确认返回后根据返回状态再记录 ： 调整接口调用顺序，先通知后台服务请求，待请求返回，user node根据返回结果来记录
+      - [x] 消息处理队列现在基于FIFO，对紧急需要优先处理的消息有一定的延迟，可改为优先队列，最小堆实现
       - [x] 2019_12_04_Note ： 以前的所有前端对我发来的控制，没有任何错误处理，如rssi 打开，你发给我以后，前端不知道是不是真的打开了。现在我加一个流程： 假设底层控制失败，我会用一个消息异步通知你，如果成功，就没有任何消息给你。如果失败，用弹窗的形式展示给用户知晓，并且页面上的控制按钮的状态也要处于正确的状态 -- task
-14. 实际测试待解决问题
-      - [ ] 未解决问题 
+1.  实际测试待解决问题
+      - [ ] I2C访问接口测试有问题，且V2和V3对I2C的访问地址不同
+      - [ ] 系统状态会回复 "stat" ：item->valuestring = 0？但 stat_len != 0
 
 ***
 
@@ -901,8 +957,23 @@ Issue and bug record list :
 5.	20191214_bug:  ？---- 主动发送系统状态异常和星座图回复数据时，node js端json数据不能完整接收，影响json解析 – frame 中4字节type改为偶数正常接收，改为奇数，接收出错
 6.	20191225_bug:  前端系统信息页面响应显示慢，待处理
 7.  IP设置页面，网关填写，都是无效，undefined
+8.  20200302 --- bug: 请求 EVENT : MSG_INQUIRY_SYSTEM_STATE 时， 系统回复长度为 stat other msg : device is not ready , SystemState not 0x20 !!! 0 ， "stat" ：item->valuestring = 0？
+9.  20200303 --- bug： i2c接口访问有时会出问题，待确认
 ***
 
+## <font color=#0000FF> 新需求和问题修改 </font>
+***
+- 20200225
+  1. 射频信息展示页面，展示包括 Frequency， Power, 本振锁定状态（local_lock_state）， RF 温度（rf_temper）， RF 电流（rf_current）， 基带电流（bb_current），整机温度（device_temper），基带板电压（bb_vs）， ADC结温（adc_temper）， ZYNQ结温（zynq_temper）， 1秒1次request （请求和回复的json格式参考 <信令数据 Json 具体定义>部分的 射频信息展示 ， 注意显示单位）
+  2. IP设置页面，网关填写，传输过去是undefined
+- 20200227
+  1. 消息处理队列现在基于FIFO，对紧急需要优先处理的消息有一定的延迟，可改为优先队列，最大堆实现，可优先处理 MSG_SYSTEM_STATE_EXCEPTION， MSG_CONF_CHANGE 等消息
+- 20200304 ： 设备操作记录日志相关内容开发
+  1. 前端获取浏览器时间，通过接入消息传送给后端，利用每个页面打开后系统状态请求json告诉我，json中新加入一个浏览器时间字段 "remote_time" 字符串类型
+  2. 前端区分不同的用户，生成一个类似唯一标识符传送给后端，每次请求后端，都把该用户标识符带入，在所有前端发给后端的json中加入一个新的字段 "terminal_id" 数值类型
+  3. 前端负责记录用户的登录和注销信息，而后端会记录用户对设备的操作，并实时写入指定文件，不同登录用户对应不同文件，所谓不同用户是指不同的电脑主机，一个电脑主机会打开多个页面，这属于一个用户，前端有办法知道不同的电脑接入设备吗？ 如果可行，我把后端的操作文件名以用户的标识符命名，这样在日志信息页面，你就可以和你记录的登录和注销信息记录关联起来，暂时不用下载，先关联就可以, 我暂时把文件放入 /run/media/mmcblk1p1/gw_web/web/log/中， 并且以20200304_id_XXX.log命名文件
+  4. 
+***
 
 ## <font color=#0000FF> Appendix</font>
 
