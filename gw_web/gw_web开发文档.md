@@ -274,7 +274,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "dst": "reg",//用于指示不同设备模块，reg寄存器，rf射频之类
     "timer": 1,// 若轮询周期为1秒，该字段由前端填写，告知webApp
     "op_cmd": 0, // 指示读写请求，1：写请求，0：读请求，写请求格式稍后定义
-    "terminal_id": id
   }
   ```
   寄存器读response格式：
@@ -342,7 +341,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "type": 41, // type不同
     "dst": "rssi",//指示为rssi模块
     "timer": 1,// 若轮询周期为1秒
-    "terminal_id": id,
     "op_cmd": 0 
   }
   ```
@@ -371,7 +369,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "dst": "rssi",
     "op_cmd": 1,
     "file_name": "filename",
-    "terminal_id": id
   }
   ```
   同时在点击stop按钮后，提供下载该文件的功能
@@ -383,7 +380,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "comment", 
     "type": 51, // 51：start csi ； 52：stop csi
     "dst": "csi",//指示为csi模块
-    "terminal_id": id
   }
   ```
   CSI图形展示包括2个，幅度频谱图和时域图，大概如下
@@ -396,7 +392,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "dst": "csi",
     "op_cmd": 1, // 1 : start save , 0: stop save
     "file_name": "filename", // 在op_cmd为1时，需要带用户自定义文件名
-    "terminal_id": id
   }
   ```
   同样，提供一个用户点击的下载按钮，该下载仅由你控制用于向用户提供在特定文件路径下的文件下载功能.
@@ -430,7 +425,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "comment", 
     "type": 61, // 61：start constellation ； 62：stop constellation
     "dst": "constellation",//指示为constellation模块
-    "terminal_id": id
   }
   ```
   Constellation图形展示仅一个，星座散点图，大概如下，横纵坐标范围都是-100 ~ 100，间隔40为一格，注意图上的红点，需要标识出来，包括线之间的交点 16个，还有4个线中点，共20个
@@ -451,8 +445,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "comment", 
     "type": 1, 
     "dst": "mon",
-    "remote_time": "2020-03-04 11:25:00", //年月日分秒
-    "terminal_id": id,
+    "currentTime": "2020-03-04 11:25:00", //年月日分秒
+    "localIp": "",// 浏览器主机IP地址
     "op_cmd": 0 
   }
   ```
@@ -531,7 +525,8 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment":      "cmd_state_response_json",
     "type": 70,
-    "cmd_state":    0
+    "cmd_state":    0,
+    "record_str":     //操作动作告知前端需要对该次操作写入记录的日志
   }
   ```
   cmd_state为返回操作状态码，定义如下：
@@ -547,7 +542,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "dac", 
     "type": 73, // 73：open dac ； 74：close dac
     "dst": "dac",
-    "terminal_id": id,
   }
   ```
   打开和关闭distance app请求json如下：
@@ -556,7 +550,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "distance app", 
     "type": 71, // 71：open distance app ； 72：close distance app
     "dst": "control app",
-    "terminal_id": id,
   }
   ```
   清除log文件按钮，就是一个clear log字样，点击后转圈表示进行中，等后端回复的操作成功后，转圈结束
@@ -566,7 +559,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "comment": "clear log", 
     "type": 75, 
     "dst": "control app",
-    "terminal_id": id,
   }
   ```
 页面打开时，该页面的2个开关按钮，dac， Distance app的显示状态，由页面请求的系统状态返回json决定，查看前面的第6项中，系统状态新增字段，用于告知这2个按钮的状态
@@ -582,7 +574,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "statistics", 
     "type": 81,
-    "terminal_id": id,
   }
   ```
   回复json如下：
@@ -663,7 +654,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     "mask": "255.255.255.0",
     "gate": "192.168.10.1",
     "dns": "192.168.1.1",
-    "terminal_id": id
   }
   ```
   其中所有的reset按钮点击后，发送json格式如下：
@@ -671,7 +661,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
   {
     "comment": "reset", 
     "type":77,
-    "terminal_id": id
   }
   ```
 - 控制设备的射频设置tab中，显示下图中红圈中的内容2样式；射频信息栏中显示的射频信息，展示图中红圈的内容1
@@ -682,7 +671,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "RF info", 
       "type": 83,
-      "terminal_id": id
     }
     ```
     后端回复格式如下：
@@ -753,7 +741,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
       "comment": "frequency setting", 
       "type":91, 
       "frequency": 75750,   // 注意，这里传整形还是字符串看前端实现方便
-      "terminal_id": id
     }
     ```
     Reset 按钮同之前的 json，所有的 reset 按钮都是同样的 json 格式
@@ -764,7 +751,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "tx power", 
       "type": 92, // 92：open； 93：close 
-      "terminal_id": id
     }
     ```
     开关Rx gain请求json如下：
@@ -772,7 +758,6 @@ webApp基于多线程处理， 处理消息是程序的主线程，消息的生�
     {
       "comment": "rx gain", 
       "type": 94, // 94：high(open)； 95：normal(close) 
-      "terminal_id": id
     }
     ```
 ***
@@ -959,6 +944,7 @@ Issue and bug record list :
 7.  IP设置页面，网关填写，都是无效，undefined
 8.  20200302 --- bug: 请求 EVENT : MSG_INQUIRY_SYSTEM_STATE 时， 系统回复长度为 stat other msg : device is not ready , SystemState not 0x20 !!! 0 ， "stat" ：item->valuestring = 0？
 9.  20200303 --- bug： i2c接口访问有时会出问题，待确认
+10. 20200305 --- bug:  运行时间显示有误 60612719 sec
 ***
 
 ## <font color=#0000FF> 新需求和问题修改 </font>
@@ -969,9 +955,9 @@ Issue and bug record list :
 - 20200227
   1. 消息处理队列现在基于FIFO，对紧急需要优先处理的消息有一定的延迟，可改为优先队列，最大堆实现，可优先处理 MSG_SYSTEM_STATE_EXCEPTION， MSG_CONF_CHANGE 等消息
 - 20200304 ： 设备操作记录日志相关内容开发
-  1. 前端获取浏览器时间，通过接入消息传送给后端，利用每个页面打开后系统状态请求json告诉我，json中新加入一个浏览器时间字段 "remote_time" 字符串类型
-  2. 前端区分不同的用户，生成一个类似唯一标识符传送给后端，每次请求后端，都把该用户标识符带入，在所有前端发给后端的json中加入一个新的字段 "terminal_id" 数值类型
-  3. 前端负责记录用户的登录和注销信息，而后端会记录用户对设备的操作，并实时写入指定文件，不同登录用户对应不同文件，所谓不同用户是指不同的电脑主机，一个电脑主机会打开多个页面，这属于一个用户，前端有办法知道不同的电脑接入设备吗？ 如果可行，我把后端的操作文件名以用户的标识符命名，这样在日志信息页面，你就可以和你记录的登录和注销信息记录关联起来，暂时不用下载，先关联就可以, 我暂时把文件放入 /run/media/mmcblk1p1/gw_web/web/log/中， 并且以20200304_id_XXX.log命名文件
+  1. 前端获取浏览器时间，通过接入消息传送给后端，利用每个页面打开后系统状态请求json告诉我，json中新加入一个浏览器时间字段 "currentTime" 字符串类型
+  2. 前端利用不同用户IP区分不同用户，，在系统状态请求json中加入一个新的字段 "localIp" 数值类型
+  3. 前端负责记录用户的登录和注销信息，后端对前端发来操作命令回复通知，前端根据回复的状态记录用户对设备的操作，并实时写入指定文件，不同登录用户对应不同文件，所谓不同用户是指不同的电脑主机，一个电脑主机会打开多个页面，这属于一个用户，前端有办法知道不同的电脑接入设备吗？
   4. 
 ***
 
