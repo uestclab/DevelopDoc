@@ -1,0 +1,103 @@
+export LD_LIBRARY_PATH=/run/media/mmcblk1p1/lib
+export PATH=$PATH/run/media/mmcblk1p1/lib:/run/media/mmcblk1p1/bin:/run/media/mmcblk1p1/script:/usr/bin:/sbin
+
+ifconfig eth1 192.168.1.7 netmask 255.255.255.0
+
+tar -xvf /run/media/mmcblk1p1/bin/gdb.tar
+
+tar -cvf emmx.tar ./
+
+tar -xvf emmc.tar -C ~
+
+
+
+// -------------
+
+tcpdump -i eth1 -Q in
+tcpdump -i eth1 !i icmp -Q out
+
+tcpdump -i eth1 -Q out -xx
+
+http://192.168.99.3:8008/gw45/
+pcn384@163.com
+lijunjie0321
+
+echo 1001 > export
+echo out > gpio1001/direction
+echo 1 > gpio1001/value
+
+dmesg -c
+
+0x33
+/sys/module/sig_chan/parameters# echo 00,51,01,01,02,03 > src_mac
+0x66 
+/sys/module/sig_chan/parameters# echo 00,102,01,01,02,03 > src_mac
+0x11
+/sys/module/sig_chan/parameters# echo 00,17,01,01,02,03 > /sys/module/sig_chan/parameters/src_mac
+
+/* 修改eth0 和 eth1 IP */
+/run/media/mmcblk1p2/misc
+
+
+root@jw:/sys/class/gpio/gpio973# udhcpc -i eth0 
+udhcpc (v1.24.1) started
+Sending discover...
+Sending discover...
+Sending select for 192.168.2.107...
+Lease of 192.168.2.107 obtained, lease time 86400
+/etc/udhcpc.d/50default: Adding DNS 192.168.2.1
+
+
+
+#/bin/sh
+cd /run/media/mmcblk1p1/
+cp -rf gw_app/ /tmp/
+export PATH=$PATH:/tmp/gw_app/handover_test/bin/
+export PATH=$PATH:/tmp/gw_app/distance/bin/
+#./ut_main &
+
+cd /run/media/mmcblk1p1/gw_web/
+cp -rf web/ /tmp/
+
+export PATH=$PATH:/tmp/web/bin/
+
+ln -s /run/media/mmcblk1p1/node-v12.13.0-linux-armv7l/bin/node /usr/bin/node
+ln -s /run/media/mmcblk1p1/node-v12.13.0-linux-armv7l/lib/node_modules/npm/bin/npm /usr/bin/npm
+ln -s /run/media/mmcblk1p1/node-v12.13.0-linux-armv7l/bin/pm2 /usr/bin/pm2
+
+
+
+cd /run/media/mmcblk1p1/gw_web/xweb/bin/
+node xweb &
+
+echo "run web"
+sh run_web.sh &
+
+exit 0
+
+
+修复文件系统
+dmesg | grep err          查看出错地方
+
+umount /dev/mmcblk0p2
+
+fsck -t ext4 /dev/mmcblk0p2  一路yes
+
+mount /dev/sdb1 /mnt
+
+
+i2c测试
+i2cdetect -l (检测i2c总线)
+i2cdetect -r -y 1（检测i2c-1上的挂载情况
+i2cdump -f -y 1 0x20 （查看adv7401(从地址0x20)寄存器值）
+i2cset -f -y 1 0x20 0x77 0x3f （设置i2c-1上0x20器件的0x77寄存器值为0x3f）
+i2cget -f -y 1 0x20 0x77     （读取i2c-1上0x20器件的0x77寄存器值）
+
+rtc :
+i2cdump -f -y 0 0x51
+
+
+
+
+
+

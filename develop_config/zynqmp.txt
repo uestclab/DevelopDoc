@@ -1,0 +1,35 @@
+petalinux 命令路径 ：  /home/dpdk/MyPath.txt
+
+GU201 项目搭载ultraScale zynqmp系列
+
+rootfs modify:
+<petalinux_install_dir>/components/yocto/source/aarch64/layers/core/meta/recipes-core/base-files/base-files/profile
+
+device-tree:
+
+dtc -I dts -O dtb -o system-top.dtb ../gw-device-tree/system-top.dts
+
+
+uboot env:
+setenv load_fpga 'fatload mmc 1 0x4000000 gu201_top.bit && fpga loadb 0 0x4000000 $filesize'
+setenv load_kernel2ram 'mmcinfo && load mmc ${sdbootdev} ${netstart} /boot/image.ub'
+setenv default_bootcmd 'run uenvboot; run load_fpga; run load_kernel2ram && bootm ${netstart}'
+
+setenv load_fpga_emmc 'load mmc 0 0x4000000 /boot/gu201_top.bit && fpga loadb 0 0x4000000 $filesize'
+setenv default_bootcmd 'run uenvboot; run load_fpga_emmc; run load_kernel2ram && bootm ${netstart}'
+
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- xilinx_gw_defconfig
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j 2
+
+
+修改设备树，rootfs或kernel后，生成新的镜像文件：
+利用 /home/dpdk/liqing/petalinux/project/GU201/ext-src/kernel-source 下的 gw_mkimage.sh脚本 结合 fit-image-petalinux-user-image.its 配置
+即可生成新的image.ub
+
+
+问题解决连接：
+1. Linux powers down the CPU cores 
+	https://www.xilinx.com/support/answers/69143.html
+
+2. 看不到 /dev/i2c
+	https://forums.xilinx.com/t5/Embedded-Linux/Not-seeing-dev-i2c-0/m-p/764721

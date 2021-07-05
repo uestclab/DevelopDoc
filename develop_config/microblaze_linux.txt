@@ -1,0 +1,52 @@
+targets
+
+fpga -f {D:\vm\microblaze_petalinux\system.bit}
+dow {D:\vm\microblaze_petalinux\image.elf}
+con
+
+Macronix
+QPSI大小:32MB
+Initialization done, programming the memory
+Part identified : mx25l25645g Part selected : mt25qu128
+
+petalinux：
+自定义的kernel位置，还需修改petalinux-config
+/home/dpdk/liqing/petalinux/project/simlpe_microblaze/components/ext_sources
+
+
+修改设备树：
+system-user.dtsi 里覆盖修改，其他的不动
+
+启动时间戳和函数调用
+make menuconfig
+->  Boot options
+ -> Kernel command line type (***)
+  ( ) Use bootloader kernel arguments if available
+  ( ) Extend bootloader kernel arguments
+  (X) Always use the default kernel command string
+
+command string initcall_debug console=ttyUL0,115200
+
+Kernel hacking
+　----->Show timing information on printks
+
+1. qspi启动 
+2. spi （AXI_Qaud_SPI）, i2c(AXI_IIC) , gpio(AXI_GPIO) ，网口.....
+3. 串口开机慢
+4. qspi flash作为部分文件系统
+
+
+debug:
+1. kernel配置完成，init 进程很快启动，问题可能出在inittab中的脚本中？ 如何修改rootfs里面的脚本内容？
+2. kernel 版本小一点？
+
+Mar  2 03:08:22 test_1 user.debug kernel: [    1.375354] start run_init_process : /init 
+Mar  2 03:08:22 test_1 daemon.info init: Id "1" respawning too fast: disabled for 5 minutes
+Mar  2 03:10:22 test_1 user.notice kernel: [  144.267360] random: crng init done
+Mar  2 03:12:33 test_1 authpriv.warn login[322]: pam_lastlog(login:session): file /var/log/lastlog created
+Mar  2 03:12:33 test_1 authpriv.info login[322]: pam_unix(login:session): session opened for user root by LOGIN(uid=0)
+Mar  2 03:12:33 test_1 authpriv.notice login[331]: ROOT LOGIN  on '/dev/ttyUL0'
+root@test_1:~# date
+Tue Mar  2 03:12:47 UTC 2021
+
+3. 提示登录时，才进入pam_lastlog之类，中间过程仍不明朗
